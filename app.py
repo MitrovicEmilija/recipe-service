@@ -1,11 +1,9 @@
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from config import Config
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3006"], supports_credentials=True)
-app.config.from_object(Config)
 
 API_KEY = "zP+P7AySdHgg0dHEPf105g==OUOeAMxcNSOR0CIn"
 
