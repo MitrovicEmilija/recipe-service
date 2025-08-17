@@ -1,14 +1,15 @@
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from ariadne import QueryType, make_executable_schema, graphql_sync
-from ariadne.constants import PLAYGROUND_HTML
+from ariadne import QueryType, graphql_sync, make_executable_schema, load_schema_from_path
+from ariadne.explorer import ExplorerGraphiQL
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3006"], supports_credentials=True)
 
 API_KEY = "zP+P7AySdHgg0dHEPf105g==OUOeAMxcNSOR0CIn"
 
+# Define type definitions
 type_defs = """
     type Recipe {
         title: String!
@@ -21,6 +22,7 @@ type_defs = """
     }
 """
 
+# Define resolver
 query = QueryType()
 
 @query.field("topRecipes")
@@ -36,12 +38,15 @@ def resolve_top_recipes(_, info, query):
         } for item in data[:3]
     ]
 
+# Setup schema
 schema = make_executable_schema(type_defs, query)
 
+# Playground UI
 @app.route("/graphql", methods=["GET"])
 def graphql_playground():
-    return PLAYGROUND_HTML, 200
+    return ExplorerGraphiQL().html(None), 200
 
+# GraphQL POST endpoint
 @app.route("/graphql", methods=["POST"])
 def graphql_server():
     data = request.get_json()
