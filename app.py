@@ -1,11 +1,40 @@
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from graphene import ObjectType, String, List, Schema
+from flask_graphql import GraphQLView
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3006"], supports_credentials=True)
 
 API_KEY = "zP+P7AySdHgg0dHEPf105g==OUOeAMxcNSOR0CIn"
+
+class RecipeType(ObjectType):
+    title = String()
+    ingredients = String()
+    instructions = String()
+
+class Query(ObjectType):
+    top_recipes = List(RecipeType, query=String(default_value="salad"))
+
+    @staticmethod
+    def resolve_top_recipes(self, info, query):
+        url = f"https://api.api-ninjas.com/v1/recipe?query={query}"
+        response = requests.get(url, headers={"X-Api-Key": API_KEY})
+        data = response.json()
+        return [
+            {
+                "title": recipe.get("title", "Untitled"),
+                "ingredients": recipe.get("ingredients", "N/A"),
+                "instructions": recipe.get("instructions", "N/A")
+            } for recipe in data[:3]
+        ]
+
+schema = Schema(query=Query)
+
+app.add_url_rule(
+    "/graphql", view_func=GraphQLView.as_view("graphql", schema=schema, graphiql=True)
+)
 
 @app.route('/recipe', methods=['GET'])
 def get_recipe():
