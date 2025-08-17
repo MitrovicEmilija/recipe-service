@@ -1,40 +1,52 @@
 import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from graphene import ObjectType, String, List, Schema
-from flask_graphql import GraphQLView
+from ariadne import QueryType, make_executable_schema, graphql_sync
+from ariadne.constants import PLAYGROUND_HTML
 
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:3006"], supports_credentials=True)
 
 API_KEY = "zP+P7AySdHgg0dHEPf105g==OUOeAMxcNSOR0CIn"
 
-class RecipeType(ObjectType):
-    title = String()
-    ingredients = String()
-    instructions = String()
+type_defs = """
+    type Recipe {
+        title: String!
+        ingredients: String!
+        instructions: String!
+    }
 
-class Query(ObjectType):
-    top_recipes = List(RecipeType, query=String(default_value="salad"))
+    type Query {
+        topRecipes(query: String!): [Recipe!]!
+    }
+"""
 
-    @staticmethod
-    def resolve_top_recipes(self, info, query):
-        url = f"https://api.api-ninjas.com/v1/recipe?query={query}"
-        response = requests.get(url, headers={"X-Api-Key": API_KEY})
-        data = response.json()
-        return [
-            {
-                "title": recipe.get("title", "Untitled"),
-                "ingredients": recipe.get("ingredients", "N/A"),
-                "instructions": recipe.get("instructions", "N/A")
-            } for recipe in data[:3]
-        ]
+query = QueryType()
 
-schema = Schema(query=Query)
+@query.field("topRecipes")
+def resolve_top_recipes(_, info, query):
+    url = f"https://api.api-ninjas.com/v1/recipe?query={query}"
+    response = requests.get(url, headers={"X-Api-Key": API_KEY})
+    data = response.json()
+    return [
+        {
+            "title": item.get("title", "Untitled"),
+            "ingredients": item.get("ingredients", ""),
+            "instructions": item.get("instructions", "")
+        } for item in data[:3]
+    ]
 
-app.add_url_rule(
-    "/graphql", view_func=GraphQLView.as_view("graphql", schema=schema, graphiql=True)
-)
+schema = make_executable_schema(type_defs, query)
+
+@app.route("/graphql", methods=["GET"])
+def graphql_playground():
+    return PLAYGROUND_HTML, 200
+
+@app.route("/graphql", methods=["POST"])
+def graphql_server():
+    data = request.get_json()
+    success, result = graphql_sync(schema, data, context_value=request, debug=True)
+    return jsonify(result)
 
 @app.route('/recipe', methods=['GET'])
 def get_recipe():
