@@ -9,7 +9,10 @@ API_KEY = "zP+P7AySdHgg0dHEPf105g==OUOeAMxcNSOR0CIn"
 
 @app.route('/recipe', methods=['GET'])
 def get_recipe():
-    query = request.args.get('query', 'salad')  # default if none provided
+    query = request.args.get('query', 'salad').strip()
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
+
     api_url = f"https://api.api-ninjas.com/v1/recipe?query={query}"
 
     try:
@@ -20,9 +23,17 @@ def get_recipe():
 
         data = response.json()
         if not data:
-            return jsonify({"error": "No recipe found"}), 404
+            return jsonify([])
 
-        return jsonify(data[:3])  # Return top 3 recipes
+        recipes = []
+        for item in data[:3]:
+            recipes.append({
+                "title": item.get("title", "Untitled Recipe"),
+                "ingredients": item.get("ingredients", "No ingredients listed."),
+                "instructions": item.get("instructions", "No instructions available.")
+            })
+
+        return jsonify(recipes)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
